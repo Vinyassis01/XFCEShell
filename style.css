@@ -1,0 +1,63 @@
+.main-overlay {
+    background-color: rgba(0, 0, 0, 0.6); 
+    min-width: 1000px;
+    min-height: 1000px;
+}
+
+.window-thumbnail {
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.workspace-card {
+    margin: 20px;
+    transition: all 150ms ease-in-out; /* Define a duração e suavidade */
+    border-radius: 12px;
+}
+
+.workspace-card:hover  {
+    filter: brightness(1.2);
+    border-color: #3584e4;
+    transform: scale(1.65); 
+}
+
+#thumb-ws-1 { background-image: url('file:///home/vinycius/gnome_xfce/ws1_thumb.jpg'); }
+#thumb-ws-2 { background-image: url('file:///home/vinycius/Imagens/wallpapers/1371840.png'); }
+#thumb-ws-3 { background-image: url('file:///home/vinycius/Imagens/wallpapers/1396628.png'); }
+#thumb-ws-4 { background-image: url('file:///home/vinycius/Imagens/wallpapers/perfectblue.png'); }
+#thumb-ws-5 { background-image: url('file:///home/vinycius/Imagens/wallpapers/plymouth_background_homeworld.png'); }
+
+/* Estilo da barra de pesquisa */
+entry {    
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50px;
+    padding: 20px;
+    font-size: 1.2rem;
+    caret-color: white;
+}
+
+/* Grid de aplicações e Workspaces */
+label {
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.app-item {
+    /* Força o botão a ser mais quadrado */
+    min-width: 120px;
+    min-height: 140px;
+    padding-top: 20px;
+    border-radius: 15px;
+    background-color: transparent; /* Remove esse fundo cinza da imagem */
+    transition: all 0.15s ease-in-out;
+}
+
+.app-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(1.10);
+}
