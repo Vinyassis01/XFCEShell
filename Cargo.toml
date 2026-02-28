@@ -5,3 +5,10 @@ edition = "2024"
 
 [dependencies]
 gtk4 = { version = "0.9", package = "gtk4", features = ["v4_8"] }
+
+[profile.release]
+opt-level = 3        # Nível máximo de otimização (0 a 3)
+lto = true           # Link Time Optimization (análise global do código)
+codegen-units = 1    # Reduz paralelismo na compilação para gerar código mais rápido
+panic = 'abort'      # Remove o overhead de "unwinding" em erros (binário menor e rápido)
+strip = true 

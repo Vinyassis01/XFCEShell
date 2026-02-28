@@ -30,8 +30,8 @@ fn create_workspace_preview(id: i32) -> gtk4::Button {
 
     // 2. Placeholder/Miniatura centralizada
     let thumbnail = gtk4::Box::builder()
-        .width_request(200)
-        .height_request(120)
+        .width_request(350)
+        .height_request(210)
         .halign(gtk4::Align::Center)
         .build();
 
@@ -120,7 +120,6 @@ fn build_ui(app: &Application) {
     // Criamos a textura a partir dos bytes na memória
     let texture = gtk4::gdk::Texture::from_bytes(&bytes).expect("Erro ao carregar a textura dos bytes embutidos");
     let background_image = gtk4::Picture::for_paintable(&texture);
-    
     background_image.set_content_fit(gtk4::ContentFit::Cover);
     overlay.set_child(Some(&background_image));
 
@@ -222,28 +221,61 @@ fn build_ui(app: &Application) {
         .width_request(600) 
         .build();
 
-    // 2. Pegar o ajuste e aplicar a lógica de animação
     let vadjustment = scrolled.vadjustment();
-    let workspaces_container_clone = workspaces_container.clone(); // O container das 2 linhas de workspaces
-    let scrolled_clone = scrolled.clone();
-    
+    let ws_container_clone = workspaces_container.clone();
+    let sc_clone = scrolled.clone();
+
+    let value1 = workspaces_container.clone();
     vadjustment.connect_value_changed(move |adj| {
     let value = adj.value();
-    let limit = 100.0; 
-    let progress = (value / limit).clamp(0.0, 1.0);
-
-    // Pegamos a altura real dos workspaces + o espaçamento (spacing) do main_vbox
-    let ws_height = workspaces_container_clone.height() as f64;
-    let spacing = 40.0; // O spacing que você definiu no main_vbox
     
-    // O pulo do gato: Aumentamos o deslocamento para cobrir o espaço vazio (spacing)
-    let total_travel = ws_height + spacing;
-    let target_margin = -(progress * total_travel) as i32; 
-    scrolled_clone.set_margin_top(target_margin);
-    // Fade out nos workspaces
-    workspaces_container_clone.set_opacity(1.0 - progress);
-    // Desativa cliques quando invisível
-    workspaces_container_clone.set_sensitive(progress < 0.5);
+    // --- LÓGICA 1: Rolar para BAIXO (Esconder Workspaces / Subir Grid) ---
+    // Ativa quando o scroll sai de 0 e vai até 120
+    let limit_up = 120.0;
+    let progress_up = (value / limit_up).clamp(0.0, 1.0);
+    let smooth_up = 1.0 - (1.0 - progress_up).powi(2); // Suavização
+
+    // --- LÓGICA 2: Rolar para CIMA (Expandir Workspaces / Descer Grid) ---
+    // Ativa apenas quando estamos muito perto do topo (valor 0)
+    // Se o valor for 0, reverse_progress é 1.0 (máxima expansão)
+    let limit_down = 50.0; 
+    let reverse_progress = (1.0 - (value / limit_down)).clamp(0.0, 1.0);
+    let smooth_down = 1.0 - (1.0 - reverse_progress).powi(2);
+
+    // --- CÁLCULO DE TAMANHO DINÂMICO ---
+    let min_height = 220; // Altura padrão quando você está navegando nos apps
+    let max_extra_height = 600; // O quanto ele cresce (ajustado conforme você pediu)
+    
+    // Altura aumenta conforme smooth_growth se aproxima de 1.0 (topo)
+    let target_height = min_height + (smooth_down * max_extra_height as f64) as i32;
+
+    // Aplica a altura ao container
+    value1.set_size_request(-1, target_height);
+
+    // --- APLICANDO OS RESULTADOS ---
+
+    if value > 0.2 {
+        // Modo Subida: O grid sobe e o workspace some
+        let total_travel = (ws_container_clone.height() as f64) + 40.0;
+        let target_margin = -(smooth_up * total_travel) as i32;
+        
+        sc_clone.set_margin_top(target_margin);
+        ws_container_clone.set_opacity(1.0 - smooth_up);
+        ws_container_clone.set_sensitive(progress_up < 0.5);
+        
+        // Resetamos a altura para o padrão enquanto sobe
+        ws_container_clone.set_size_request(-1, 220);
+    } else {
+        // Modo Expansão (Topo absoluto): O workspace cresce e empurra o grid para baixo
+        let target_height = 20 + (smooth_down * 200.0) as i32;
+        ws_container_clone.set_size_request(-1, target_height);
+        
+        let scroll_push = (smooth_down * 20.0) as i32;
+        sc_clone.set_margin_top(scroll_push);
+        
+        ws_container_clone.set_opacity(1.0);
+        ws_container_clone.set_sensitive(true);
+    }
 });
 
     scrolled.set_margin_bottom(40);
