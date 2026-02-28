@@ -70,6 +70,7 @@ fn build_ui(app: &Application) {
     // Criamos as 5 miniaturas
     for i in 1..=5 {
         let ws_button = create_workspace_preview(i);
+        let window_clone = window.clone();
         
         // Ação para trocar de workspace
         let ws_index = i - 1;
@@ -77,12 +78,13 @@ fn build_ui(app: &Application) {
             let _ = std::process::Command::new("wmctrl")
                 .args(["-s", &ws_index.to_string()])
                 .spawn();
+                window_clone.close();
         });
-    
+        
         // Distribui os botões entre as linhas
         if i <= 3 {
             row_top.append(&ws_button);
-    } else {
+        } else {
         row_bottom.append(&ws_button);
         }
     }
@@ -94,11 +96,7 @@ fn build_ui(app: &Application) {
     // Criamos um Overlay para permitir camadas (Fundo + Conteúdo)
     let overlay = Overlay::new();
 
-    // --- IMAGEM DE FUNDO ---
-    let background_image = gtk4::Picture::for_filename("ws1_thumb.jpg");
-    background_image.set_content_fit(gtk4::ContentFit::Cover);
-    overlay.set_child(Some(&background_image));
-
+  
     // Dentro de build_ui(app: &Application)
     let provider = CssProvider::new();
    
@@ -126,10 +124,8 @@ fn build_ui(app: &Application) {
     background_image.set_content_fit(gtk4::ContentFit::Cover);
     overlay.set_child(Some(&background_image));
 
-
     let main_vbox = Box::new(Orientation::Vertical, 40);
     main_vbox.add_css_class("main-overlay");
-    main_vbox.set_margin_top(10);
     main_vbox.set_margin_bottom(100);
 
     let search_bar = SearchEntry::builder()
@@ -150,6 +146,7 @@ fn build_ui(app: &Application) {
         .build();
 
     apps_flow_box.set_margin_bottom(100);
+    apps_flow_box.add_css_class("flow_box");
 
     // Usando gio de dentro do gtk4 explicitamente
     let apps = gio::AppInfo::all();
@@ -222,11 +219,35 @@ fn build_ui(app: &Application) {
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
         .vexpand(true)               // Faz o scroll ocupar o espaço vertical restante
         .propagate_natural_height(true)
-        .min_content_height(200)
         .width_request(600) 
         .build();
 
+    // 2. Pegar o ajuste e aplicar a lógica de animação
+    let vadjustment = scrolled.vadjustment();
+    let workspaces_container_clone = workspaces_container.clone(); // O container das 2 linhas de workspaces
+    let scrolled_clone = scrolled.clone();
+    
+    vadjustment.connect_value_changed(move |adj| {
+    let value = adj.value();
+    let limit = 100.0; 
+    let progress = (value / limit).clamp(0.0, 1.0);
+
+    // Pegamos a altura real dos workspaces + o espaçamento (spacing) do main_vbox
+    let ws_height = workspaces_container_clone.height() as f64;
+    let spacing = 40.0; // O spacing que você definiu no main_vbox
+    
+    // O pulo do gato: Aumentamos o deslocamento para cobrir o espaço vazio (spacing)
+    let total_travel = ws_height + spacing;
+    let target_margin = -(progress * total_travel) as i32; 
+    scrolled_clone.set_margin_top(target_margin);
+    // Fade out nos workspaces
+    workspaces_container_clone.set_opacity(1.0 - progress);
+    // Desativa cliques quando invisível
+    workspaces_container_clone.set_sensitive(progress < 0.5);
+});
+
     scrolled.set_margin_bottom(40);
+    scrolled.add_css_class("scroll");
 
     main_vbox.append(&search_bar);
     main_vbox.append(&workspaces_container);
