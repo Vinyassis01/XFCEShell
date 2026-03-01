@@ -1,5 +1,4 @@
 use gtk4::prelude::*;
-// Importamos o gio de dentro do gtk4 para evitar erros de dependência
 use gtk4::{
     gio, Application, ApplicationWindow, SearchEntry, Label, Box, 
     Orientation, FlowBox, SelectionMode, Align, Image, ScrolledWindow, Button
@@ -7,6 +6,9 @@ use gtk4::{
 use gtk4::Overlay;
 use gtk4::{CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
 use gtk4::gdk::Display; 
+// use global_hotkey::{GlobalHotKeyManager, hotkey::{HotKey, Modifiers, Code}, GlobalHotKeyEvent};
+// use std::cell::RefCell;
+// use std::rc::Rc;
 
 fn main() {
     let app = Application::builder()
@@ -17,8 +19,7 @@ fn main() {
     app.run();
 }
 
-fn create_workspace_preview(id: i32) -> gtk4::Button {
-    // 1. Container do Card (Box) - Centralização horizontal e vertical
+fn create_workspace_preview(_id: i32) -> gtk4::Button {
     let workspace_card = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(10)
@@ -28,17 +29,25 @@ fn create_workspace_preview(id: i32) -> gtk4::Button {
         .css_classes(vec!["workspace-card".to_string()])
         .build();
 
-    // 2. Placeholder/Miniatura centralizada
-    let thumbnail = gtk4::Box::builder()
+    // 1. Carregar os bytes e criar a textura (GdkTexture)
+    let image_bytes = include_bytes!("../ws1_thumb.jpg");
+    let bytes = gtk4::glib::Bytes::from_static(image_bytes);
+    // Criamos a textura a partir dos bytes
+    let texture = gtk4::gdk::Texture::from_bytes(&bytes)
+        .expect("Erro ao carregar a textura dos bytes embutidos");
+
+    // 2. Criar o widget de imagem (Picture) em vez de um Box vazio
+    let thumbnail = gtk4::Picture::builder()
+        .paintable(&texture)
         .width_request(350)
         .height_request(210)
+        .content_fit(gtk4::ContentFit::Cover) // Faz a imagem preencher o espaço como um "background-size: cover"
         .halign(gtk4::Align::Center)
         .build();
 
-        // Definimos um NOME DE OBJETO para referenciar no CSS
-        thumbnail.set_widget_name(&format!("thumb-ws-{}", id));
-        thumbnail.add_css_class("window-thumbnail");
-
+    // Definimos um NOME DE OBJETO para referenciar no CSS
+    
+    thumbnail.add_css_class("window-thumbnail");
     workspace_card.append(&thumbnail);
 
     gtk4::Button::builder()
@@ -50,14 +59,41 @@ fn create_workspace_preview(id: i32) -> gtk4::Button {
 fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
-        .title("XFCE4Shell")
+        .title("xfce_shell")
         .fullscreened(true)
         .build();
+
+//        let manager = GlobalHotKeyManager::new().unwrap();
+//        let hotkey = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+//        manager.register(hotkey).unwrap();
+//
+//        let window_ref = Rc::new(RefCell::new(window));
+//        let hotkey_id = hotkey.id();
+//
+//        // 3. Monitorar o atalho no loop do GLib
+//        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+//            if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+//                if event.id == hotkey_id && event.state == global_hotkey::HotKeyState::Pressed {
+//                    let win = window_ref.borrow();
+//                    if win.is_visible() {
+//                        win.hide();
+//                    } else {
+//                        win.present(); // Traz a janela para frente
+//                    }
+//                }
+//            }
+//            glib::ControlFlow::Continue
+//        });
+//
+//        // Mantém a aplicação rodando mesmo com janelas fechadas
+//        app.hold(); 
+//    });
+
 
     // --- CONTAINER PRINCIPAL DOS WORKSPACES (Vertical) ---
     let workspaces_container = Box::new(Orientation::Vertical, 15);
     workspaces_container.set_halign(Align::Center);
-    workspaces_container.set_margin_bottom(20);
+    workspaces_container.set_margin_bottom(10);
     
     // Primeira linha: 3 miniaturas
     let row_top = Box::new(Orientation::Horizontal, 15);
@@ -88,18 +124,13 @@ fn build_ui(app: &Application) {
         row_bottom.append(&ws_button);
         }
     }
-    
-    // Monta a estrutura: Adiciona as duas linhas ao container vertical
+   
     workspaces_container.append(&row_top);
     workspaces_container.append(&row_bottom);
-
     // Criamos um Overlay para permitir camadas (Fundo + Conteúdo)
     let overlay = Overlay::new();
-
-  
-    // Dentro de build_ui(app: &Application)
     let provider = CssProvider::new();
-   
+
     let css_data = include_str!("../style.css");
     provider.load_from_data(css_data);
     
@@ -111,17 +142,13 @@ fn build_ui(app: &Application) {
             STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
     }
-
-    // --- CARREGAR IMAGEM DE FUNDO EMBUTIDA ---
-    // include_bytes! lê o arquivo e gera um &[u8] estático
-    let image_bytes = include_bytes!("../ws1_thumb.jpg");
-    let bytes = gtk4::glib::Bytes::from_static(image_bytes);
-   
-    // Criamos a textura a partir dos bytes na memória
-    let texture = gtk4::gdk::Texture::from_bytes(&bytes).expect("Erro ao carregar a textura dos bytes embutidos");
-    let background_image = gtk4::Picture::for_paintable(&texture);
-    background_image.set_content_fit(gtk4::ContentFit::Cover);
-    overlay.set_child(Some(&background_image));
+//   --- CARREGAR IMAGEM DE FUNDO EMBUTIDA ---
+   let image_bytes = include_bytes!("../ws1_thumb.jpg"); // modifique o caminho para sua imagem 
+   let bytes = gtk4::glib::Bytes::from_static(image_bytes);
+   let texture = gtk4::gdk::Texture::from_bytes(&bytes).expect("Erro ao carregar a textura dos bytes embutidos");
+   let background_image = gtk4::Picture::for_paintable(&texture);
+   background_image.set_content_fit(gtk4::ContentFit::Cover);
+   overlay.set_child(Some(&background_image));
 
     let main_vbox = Box::new(Orientation::Vertical, 40);
     main_vbox.add_css_class("main-overlay");
@@ -156,7 +183,7 @@ fn build_ui(app: &Application) {
 
         if app_info.should_show() {
             let item_vbox = Box::new(Orientation::Vertical, 10);
-            item_vbox.set_width_request(50);
+            item_vbox.set_width_request(40);
 
             if let Some(icon) = app_info.icon() {
                 let image = Image::from_gicon(&icon);
@@ -167,7 +194,7 @@ fn build_ui(app: &Application) {
             let label = Label::builder()
                 .label(app_info.name().as_str())
                 .ellipsize(gtk4::pango::EllipsizeMode::End)
-                .halign(Align::Center)
+                .halign(Align::Fill)
                 .build();
             item_vbox.append(&label);
 
@@ -231,14 +258,14 @@ fn build_ui(app: &Application) {
     
     // --- LÓGICA 1: Rolar para BAIXO (Esconder Workspaces / Subir Grid) ---
     // Ativa quando o scroll sai de 0 e vai até 120
-    let limit_up = 120.0;
+    let limit_up = 150.0;
     let progress_up = (value / limit_up).clamp(0.0, 1.0);
     let smooth_up = 1.0 - (1.0 - progress_up).powi(2); // Suavização
 
     // --- LÓGICA 2: Rolar para CIMA (Expandir Workspaces / Descer Grid) ---
     // Ativa apenas quando estamos muito perto do topo (valor 0)
     // Se o valor for 0, reverse_progress é 1.0 (máxima expansão)
-    let limit_down = 50.0; 
+    let limit_down = 10.0; 
     let reverse_progress = (1.0 - (value / limit_down)).clamp(0.0, 1.0);
     let smooth_down = 1.0 - (1.0 - reverse_progress).powi(2);
 
