@@ -15,7 +15,7 @@ fn main() ->glib::ExitCode {
         .build();
 
     app.connect_activate(build_ui);
-    let _hold_guard = app.hold(); 
+    let _guard = app.hold(); 
     app.run()
   
 }
@@ -60,72 +60,43 @@ fn create_workspace_preview(_id: i32) -> gtk4::Button {
 fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
-        .title("xfce_shell")
+        .title("shell")
         .fullscreened(true)
+        .decorated(false)
         .build();
 
-//        window.connect_close_request(move |win| {
-//        win.hide();
-//        glib::Propagation::Stop // Garante que a janela continue na memória
-//        });
-//
-//        let manager = GlobalHotKeyManager::new().unwrap();
-//        let hotkey = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
-//        manager.register(hotkey).unwrap();
-//
-//        let window_ref = window.downgrade();
-//        let hotkey_id = hotkey.id();
-//
-//        let rx = GlobalHotKeyEvent::receiver();
-//        // 3. Monitorar o atalho no loop do GLib
-//        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
-//            if let Ok(event) = rx.try_recv() {
-//                if event.id == hotkey_id && event.state == global_hotkey::HotKeyState::Pressed {
-//                    let Some(win) = window_ref.upgrade()else { todo!() };
-//                    if win.is_visible() {
-//                        win.hide();
-//                    } else {
-//                        win.present(); // Traz a janela para frente
-//                    }
-//                }
-//            }
-//            glib::ControlFlow::Continue
-//        });
-
-
-// IMPEDIR QUE A JANELA SEJA DESTRUÍDA AO FECHAR
-    window.connect_close_request(move |win| {
+        window.connect_close_request(move |win| {
         win.hide();
-        glib::Propagation::Stop // Garante que a janela continue na memória
-    });
+        glib::Propagation::Stop 
+        });
 
-    let manager = GlobalHotKeyManager::new().unwrap();
-    let hotkey = HotKey::new(Some(Modifiers::WIN | Modifiers::SHIFT), Code::KeyH);
-    manager.register(hotkey).unwrap();
+        let manager = GlobalHotKeyManager::new().unwrap();
+        let hotkey = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyH);
+        manager.register(hotkey).unwrap();
 
-    let hotkey_id = hotkey.id();
-    let window_weak = window.downgrade(); // Melhor que Rc<RefCell> para widgets GTK
+        let hotkey_id = hotkey.id();
+        let window_ref = window.clone();
+        let rx = GlobalHotKeyEvent::receiver();
+        // 3. Monitorar o atalho no loop do GLib
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+            let _keep_alive = &manager; 
     
-    // CRIAR O RECEPTOR FORA DO LOOP
-    let rx = GlobalHotKeyEvent::receiver();
-
-    glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
-        // Usa o receptor persistente 'rx'
-        if let Ok(event) = rx.try_recv() {
-            println!("Atalho pressionado! ID: {:?}", event.id);
-            if event.id == hotkey_id && event.state == global_hotkey::HotKeyState::Pressed {
-                if let Some(win) = window_weak.upgrade() {
-                    if win.is_visible() {
-                        win.hide();
+            while let Ok(event) = rx.try_recv() {
+           // if let Ok(event) = rx.try_recv() {
+                println!("comando pressionado id:{hotkey_id:?}", );
+                if event.id == hotkey_id && event.state == global_hotkey::HotKeyState::Pressed {
+                   
+                    if window_ref.is_visible() {
+                        window_ref.hide();
                     } else {
-                        win.present();
+                        window_ref.present(); // Traz a janela para frente
                     }
                 }
             }
-        }
-        glib::ControlFlow::Continue
-    });
+            glib::ControlFlow::Continue
+        });
 
+    window.present();
 
     // --- CONTAINER PRINCIPAL DOS WORKSPACES (Vertical) ---
     let workspaces_container = Box::new(Orientation::Vertical, 15);

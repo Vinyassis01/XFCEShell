@@ -4,7 +4,7 @@
 APP_NAME="gnome_xfce"
 
 echo "🔨 Compilando $APP_NAME..."
-RUSTFLAGS="-C target-cpu=native" cargo build --release
+RUSTFLAGS="-C target-cpu=native"  cargo build --release
 
 if [ $? -eq 0 ]; then
     echo "✅ Compilação concluída!"
