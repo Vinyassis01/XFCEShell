@@ -6,17 +6,18 @@ use gtk4::{
 use gtk4::Overlay;
 use gtk4::{CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
 use gtk4::gdk::Display; 
-// use global_hotkey::{GlobalHotKeyManager, hotkey::{HotKey, Modifiers, Code}, GlobalHotKeyEvent};
-// use std::cell::RefCell;
-// use std::rc::Rc;
+use global_hotkey::{GlobalHotKeyManager, hotkey::{HotKey, Modifiers, Code}, GlobalHotKeyEvent};
+use gtk4::glib;
 
-fn main() {
+fn main() ->glib::ExitCode {
     let app = Application::builder()
         .application_id("com.exemplo.gnomeshell-clone")
         .build();
 
     app.connect_activate(build_ui);
-    app.run();
+    let _hold_guard = app.hold(); 
+    app.run()
+  
 }
 
 fn create_workspace_preview(_id: i32) -> gtk4::Button {
@@ -63,18 +64,24 @@ fn build_ui(app: &Application) {
         .fullscreened(true)
         .build();
 
+//        window.connect_close_request(move |win| {
+//        win.hide();
+//        glib::Propagation::Stop // Garante que a janela continue na memória
+//        });
+//
 //        let manager = GlobalHotKeyManager::new().unwrap();
 //        let hotkey = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
 //        manager.register(hotkey).unwrap();
 //
-//        let window_ref = Rc::new(RefCell::new(window));
+//        let window_ref = window.downgrade();
 //        let hotkey_id = hotkey.id();
 //
+//        let rx = GlobalHotKeyEvent::receiver();
 //        // 3. Monitorar o atalho no loop do GLib
 //        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
-//            if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+//            if let Ok(event) = rx.try_recv() {
 //                if event.id == hotkey_id && event.state == global_hotkey::HotKeyState::Pressed {
-//                    let win = window_ref.borrow();
+//                    let Some(win) = window_ref.upgrade()else { todo!() };
 //                    if win.is_visible() {
 //                        win.hide();
 //                    } else {
@@ -84,10 +91,40 @@ fn build_ui(app: &Application) {
 //            }
 //            glib::ControlFlow::Continue
 //        });
-//
-//        // Mantém a aplicação rodando mesmo com janelas fechadas
-//        app.hold(); 
-//    });
+
+
+// IMPEDIR QUE A JANELA SEJA DESTRUÍDA AO FECHAR
+    window.connect_close_request(move |win| {
+        win.hide();
+        glib::Propagation::Stop // Garante que a janela continue na memória
+    });
+
+    let manager = GlobalHotKeyManager::new().unwrap();
+    let hotkey = HotKey::new(Some(Modifiers::WIN | Modifiers::SHIFT), Code::KeyH);
+    manager.register(hotkey).unwrap();
+
+    let hotkey_id = hotkey.id();
+    let window_weak = window.downgrade(); // Melhor que Rc<RefCell> para widgets GTK
+    
+    // CRIAR O RECEPTOR FORA DO LOOP
+    let rx = GlobalHotKeyEvent::receiver();
+
+    glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+        // Usa o receptor persistente 'rx'
+        if let Ok(event) = rx.try_recv() {
+            println!("Atalho pressionado! ID: {:?}", event.id);
+            if event.id == hotkey_id && event.state == global_hotkey::HotKeyState::Pressed {
+                if let Some(win) = window_weak.upgrade() {
+                    if win.is_visible() {
+                        win.hide();
+                    } else {
+                        win.present();
+                    }
+                }
+            }
+        }
+        glib::ControlFlow::Continue
+    });
 
 
     // --- CONTAINER PRINCIPAL DOS WORKSPACES (Vertical) ---
@@ -114,7 +151,7 @@ fn build_ui(app: &Application) {
             let _ = std::process::Command::new("wmctrl")
                 .args(["-s", &ws_index.to_string()])
                 .spawn();
-                window_clone.close();
+                window_clone.hide();
         });
         
         // Distribui os botões entre as linhas
@@ -209,7 +246,7 @@ fn build_ui(app: &Application) {
             btn.connect_clicked(move |_| {
                 // Launch context como None
                 let _ = app_info_clone.launch(&[], None::<&gio::AppLaunchContext>);
-                window_clone.close();
+                window_clone.hide();
             });
 
             // No GTK4 FlowBox, usamos insert para adicionar widgets

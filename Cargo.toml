@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+global-hotkey = "0.7.0"
 gtk4 = { version = "0.9", package = "gtk4", features = ["v4_8"] }
 
 [profile.release]
